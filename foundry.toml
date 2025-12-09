@@ -10,6 +10,11 @@ remappings = [
     'forge-std/=lib/forge-std/src/',
 ]
 
+[invariant]
+runs = 500
+depth = 32
+fail_on_revert = true
+
 [fmt]
 bracket_spacing = true
 int_types = "long"

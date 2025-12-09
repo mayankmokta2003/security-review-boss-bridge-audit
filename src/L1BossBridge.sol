@@ -25,8 +25,11 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {L1Vault} from "./L1Vault.sol";
 
 contract L1BossBridge is Ownable, Pausable, ReentrancyGuard {
+
+    // @audit-info- should be immutable
     using SafeERC20 for IERC20;
 
+    // @audit-info- should be constant
     uint256 public DEPOSIT_LIMIT = 100_000 ether;
 
     IERC20 public immutable token;
@@ -68,7 +71,8 @@ contract L1BossBridge is Ownable, Pausable, ReentrancyGuard {
      * @param amount The amount of tokens to deposit
      */
 
-    // @audit-high- address from should not be there.
+    // @audit-high- if user approves the tx, anyone can steal their funds.
+    
     function depositTokensToL2(
         address from,
         address l2Recipient,
@@ -80,6 +84,7 @@ contract L1BossBridge is Ownable, Pausable, ReentrancyGuard {
         token.safeTransferFrom(from, address(vault), amount);
 
         // Our off-chain service picks up this event and mints the corresponding tokens on L2
+        // @audit-info- does not follow CEI should be above externalcall.
         emit Deposit(from, l2Recipient, amount);
     }
 

