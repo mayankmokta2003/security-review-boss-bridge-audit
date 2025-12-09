@@ -71,7 +71,7 @@ contract L1BossBridge is Ownable, Pausable, ReentrancyGuard {
      * @param amount The amount of tokens to deposit
      */
 
-    // @audit-high- if user approves the tx, anyone can steal their funds.
+    // @audit-high-done if user approves the tx, anyone can steal their funds.
     
     function depositTokensToL2(
         address from,
