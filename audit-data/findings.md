@@ -149,7 +149,7 @@ Recommended Mitigation: Consider redesigning the withdrawal mechanism so that it
 
 
 
-[S-#] TITLE (Root Cause -> Impact) `L1BossBridge::sendToL1` allowing arbitrary calls enables users to call `L1Vault::approveTo` and give themselves infinite allowance of vault funds
+[H-4] TITLE (Root Cause -> Impact) `L1BossBridge::sendToL1` allowing arbitrary calls enables users to call `L1Vault::approveTo` and give themselves infinite allowance of vault funds
 
 Description: The function `sendToL1` in the contract allows arbitrary calls as we know that attacker can reuse the signature and through `sendToL1` by submitting the signature attacker can call the function `approveTo` in the contract `L1Vault` and get allowance of the whole protocol including draining all the funds from the vault.
 
@@ -223,47 +223,116 @@ Recommended Mitigation: Consider disallowing attacker-controlled external calls 
 
 
 
-[S-#] TITLE (Root Cause -> Impact)
+[L-1] TITLE (Root Cause -> Impact) Function `L1BossBridge::depositTokensToL2` does not follow CEI.
 
-Description:
+Description: Its always a good practice to follow checks then effects and then interactions, but in the function `depositTokensToL2` first the external call is sent and then the event is emitted.
 
-Impact:
+Recommended Mitigation: Consider following the below code in your `depositTokensToL2` function.
 
-Proof of Concept:
-
-Recommended Mitigation:
-
-
-
-
-
-
-
-
-
-[S-#] TITLE (Root Cause -> Impact)
-
-Description:
-
-Impact:
-
-Proof of Concept:
-
-Recommended Mitigation:
+```diff
+function depositTokensToL2(
+        address from,
+        address l2Recipient,
+        uint256 amount
+    ) external whenNotPaused {
+        if (token.balanceOf(address(vault)) + amount > DEPOSIT_LIMIT) {
+            revert L1BossBridge__DepositLimitReached();
+        }
++       emit Deposit(from, l2Recipient, amount);
+        token.safeTransferFrom(from, address(vault), amount);
+-       emit Deposit(from, l2Recipient, amount);
+    }
+```
 
 
 
 
 
 
+[L-2] TITLE (Root Cause -> Impact) Function `TokenFactory::deployToken` should be marked as external.
+
+Description: If a function in not called in that contract then it should be marked as external instead of public so due to this, `deployToken` should be marked as external.
+
+Recommended Mitigation: Consider following the below code in your `deployToken` function.
+
+```diff
+-           function deployToken(string memory symbol, bytes memory contractBytecode) public onlyOwner 
++           function deployToken(string memory symbol, bytes memory contractBytecode) external onlyOwner 
+returns (address addr) {
+        assembly {
+            // @audit-high- this is not allowed in zksync
+            addr := create(0, add(contractBytecode, 0x20), mload(contractBytecode))
+        }
+        s_tokenToAddress[symbol] = addr;
+        emit TokenDeployed(symbol, addr);
+    }
+```
 
 
-[S-#] TITLE (Root Cause -> Impact)
 
-Description:
 
-Impact:
+[L-3] TITLE (Root Cause -> Impact) Function `TokenFactory::getTokenAddressFromSymbol` should be marked as external.
 
-Proof of Concept:
+Description: If a function in not called in that contract then it should be marked as external instead of public so due to this, `getTokenAddressFromSymbol` should be marked as external.
 
-Recommended Mitigation:
+Recommended Mitigation: Consider following the below code in your `getTokenAddressFromSymbol` function.
+
+```diff
+-        function getTokenAddressFromSymbol(string memory symbol) public view returns (address addr) {
++        function getTokenAddressFromSymbol(string memory symbol) external view returns (address addr) {
+        return s_tokenToAddress[symbol];
+    }
+```
+
+
+
+
+[L-4] TITLE (Root Cause -> Impact) `L1BossBridge::DEPOSIT_LIMIT` should be marked as constant.
+
+Description: If the value of any storage variable is fixed so it should be marked as constant, hence `L1BossBridge::DEPOSIT_LIMIT` should be marked as constant.
+
+Recommended Mitigation: Consider adding the below code in `L1BossBridge` contract:
+
+```diff
+-    uint256 public DEPOSIT_LIMIT = 100_000 ether;
++    uint256 public constant DEPOSIT_LIMIT = 100_000 ether
+```
+
+
+
+
+[L-5] TITLE (Root Cause -> Impact) `L1Vault::token` should be marked as immutable.
+
+Recommended Mitigation: Consider adding the below code in `L1Vault` contract:
+```diff
+-    IERC20 public token;
++    IERC20 public immutable token;
+```
+
+
+[L-6] TITLE (Root Cause -> Impact) Function `L1Vault::approveTo` should return a bool value but it's ignored.
+
+Recommended Mitigation: Consider adding the below code in `approveTo` function:
+
+```diff
+-      function approveTo(address target, uint256 amount) external onlyOwner {
++      function approveTo(address target, uint256 amount) external onlyOwner returns(bool) {
+       token.approve(target, amount);
++      return true;
+    }
+```
+
+
+[L-7] TITLE (Root Cause -> Impact) Function `L1BossBridge::setSigner` should emit an event.
+
+Description: There are state variable changing in the function `setSigner` but no event is emitted. Consider emitting an event to enable offchain indexers to track the changes.
+
+Recommended Mitigation: Consider adding the below code in `L1BossBridge::setSigner`:
+
+```diff
++   event SignerChanged(address newSigner);
+    function setSigner(address account, bool enabled) external onlyOwner {
+    signers[account] = enabled;
++   emit SignerChanged(account);     
+    }
+```

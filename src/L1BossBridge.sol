@@ -26,12 +26,13 @@ import {L1Vault} from "./L1Vault.sol";
 
 contract L1BossBridge is Ownable, Pausable, ReentrancyGuard {
 
-    // @audit-info- should be immutable
+    
     using SafeERC20 for IERC20;
 
     // @audit-info- should be constant
     uint256 public DEPOSIT_LIMIT = 100_000 ether;
 
+    // @audit-info- should be immutable
     IERC20 public immutable token;
     L1Vault public immutable vault;
     mapping(address account => bool isSigner) public signers;
