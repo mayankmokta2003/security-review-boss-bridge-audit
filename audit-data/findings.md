@@ -220,10 +220,58 @@ Recommended Mitigation: Consider disallowing attacker-controlled external calls 
 
 
 
+[L-1] TITLE (Root Cause -> Impact) Function `L1BossBridge::setSigner` should emit an event.
+
+Description: There are state variable changing in the function `setSigner` but no event is emitted. Consider emitting an event to enable offchain indexers to track the changes.
+
+Recommended Mitigation: Consider adding the below code in `L1BossBridge::setSigner`:
+
+```diff
++   event SignerChanged(address newSigner);
+    function setSigner(address account, bool enabled) external onlyOwner {
+    signers[account] = enabled;
++   emit SignerChanged(account);     
+    }
+```
 
 
 
-[L-1] TITLE (Root Cause -> Impact) Function `L1BossBridge::depositTokensToL2` does not follow CEI.
+[L-2] TITLE (Root Cause -> Impact) Function `L1BossBridge::withdrawTokensToL1` should emit an event.
+
+Description: There are state variable changing in the function `withdrawTokensToL1` but no event is emitted. Consider emitting an event to enable offchain indexers to track the changes.
+
+Recommended Mitigation: Consider adding the below code in `L1BossBridge::withdrawTokensToL1`:
+
+```diff
++   event Withdrawn(address indexed to, uint256 amount);
+function withdrawTokensToL1(
+        address to,
+        uint256 amount,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external {
++       emit Withdrawn(to,amount);
+        sendToL1(
+            v,
+            r,
+            s,
+            abi.encode(
+                address(token),
+                0, // value
+                abi.encodeCall(
+                    IERC20.transferFrom,
+                    (address(vault), to, amount)
+                )
+            )
+        );
+    }
+```
+
+
+
+
+[I-1] TITLE (Root Cause -> Impact) Function `L1BossBridge::depositTokensToL2` does not follow CEI.
 
 Description: Its always a good practice to follow checks then effects and then interactions, but in the function `depositTokensToL2` first the external call is sent and then the event is emitted.
 
@@ -248,8 +296,7 @@ function depositTokensToL2(
 
 
 
-
-[L-2] TITLE (Root Cause -> Impact) Function `TokenFactory::deployToken` should be marked as external.
+[I-2] TITLE (Root Cause -> Impact) Function `TokenFactory::deployToken` should be marked as external.
 
 Description: If a function in not called in that contract then it should be marked as external instead of public so due to this, `deployToken` should be marked as external.
 
@@ -271,7 +318,7 @@ returns (address addr) {
 
 
 
-[L-3] TITLE (Root Cause -> Impact) Function `TokenFactory::getTokenAddressFromSymbol` should be marked as external.
+[I-3] TITLE (Root Cause -> Impact) Function `TokenFactory::getTokenAddressFromSymbol` should be marked as external.
 
 Description: If a function in not called in that contract then it should be marked as external instead of public so due to this, `getTokenAddressFromSymbol` should be marked as external.
 
@@ -287,7 +334,7 @@ Recommended Mitigation: Consider following the below code in your `getTokenAddre
 
 
 
-[L-4] TITLE (Root Cause -> Impact) `L1BossBridge::DEPOSIT_LIMIT` should be marked as constant.
+[I-4] TITLE (Root Cause -> Impact) `L1BossBridge::DEPOSIT_LIMIT` should be marked as constant.
 
 Description: If the value of any storage variable is fixed so it should be marked as constant, hence `L1BossBridge::DEPOSIT_LIMIT` should be marked as constant.
 
@@ -301,7 +348,7 @@ Recommended Mitigation: Consider adding the below code in `L1BossBridge` contrac
 
 
 
-[L-5] TITLE (Root Cause -> Impact) `L1Vault::token` should be marked as immutable.
+[I-5] TITLE (Root Cause -> Impact) `L1Vault::token` should be marked as immutable.
 
 Recommended Mitigation: Consider adding the below code in `L1Vault` contract:
 ```diff
@@ -310,7 +357,8 @@ Recommended Mitigation: Consider adding the below code in `L1Vault` contract:
 ```
 
 
-[L-6] TITLE (Root Cause -> Impact) Function `L1Vault::approveTo` should return a bool value but it's ignored.
+
+[I-6] TITLE (Root Cause -> Impact) Function `L1Vault::approveTo` should return a bool value but it's ignored.
 
 Recommended Mitigation: Consider adding the below code in `approveTo` function:
 
@@ -322,17 +370,3 @@ Recommended Mitigation: Consider adding the below code in `approveTo` function:
     }
 ```
 
-
-[L-7] TITLE (Root Cause -> Impact) Function `L1BossBridge::setSigner` should emit an event.
-
-Description: There are state variable changing in the function `setSigner` but no event is emitted. Consider emitting an event to enable offchain indexers to track the changes.
-
-Recommended Mitigation: Consider adding the below code in `L1BossBridge::setSigner`:
-
-```diff
-+   event SignerChanged(address newSigner);
-    function setSigner(address account, bool enabled) external onlyOwner {
-    signers[account] = enabled;
-+   emit SignerChanged(account);     
-    }
-```
