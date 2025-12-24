@@ -1,7 +1,7 @@
 ---
-title: Protocol Audit Report
-author: Cyfrin.io
-date: March 7, 2023
+title: Boss-bridge Audit Report
+author: MayankMokta
+date: December 15, 2025
 header-includes:
   - \usepackage{titling}
   - \usepackage{graphicx}
@@ -11,14 +11,14 @@ header-includes:
     \centering
     \begin{figure}[h]
         \centering
-        \includegraphics[width=0.5\textwidth]{logo.pdf} 
+        \includegraphics[width=0.5\textwidth]{logo.png} 
     \end{figure}
     \vspace*{2cm}
     {\Huge\bfseries Protocol Audit Report\par}
     \vspace{1cm}
     {\Large Version 1.0\par}
     \vspace{2cm}
-    {\Large\itshape Cyfrin.io\par}
+    {\Large\itshape Mayank.io\par}
     \vfill
     {\large \today\par}
 \end{titlepage}
